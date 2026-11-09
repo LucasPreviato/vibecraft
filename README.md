@@ -2,7 +2,7 @@
 
 ![Vibecraft Screenshot](public/og-image.png)
 
-Manage Claude Code in style!
+Visualize Claude Code and Codex in style!
 
 **[Try it instantly at vibecraft.sh](https://vibecraft.sh)** — still connects to your local Claude Code instances!
 
@@ -18,7 +18,8 @@ Vibecraft uses your own local Claude Code instances — no files or prompts are 
 
 - **macOS or Linux** (Windows not supported - hooks require bash)
 - **Node.js** 18+
-- **jq** - for hook scripts (`brew install jq` / `apt install jq`)
+- **Python 3** - for Codex hook scripts
+- **jq** - only for Claude Code hook scripts (`brew install jq` / `apt install jq`)
 - **tmux** - for session management (`brew install tmux` / `apt install tmux`)
 
 ## Quick Start
@@ -35,7 +36,21 @@ npx vibecraft setup
 npx vibecraft
 ```
 
-Open http://localhost:4003 and use Claude Code normally. You'll see Claude move around the workshop as it uses tools.
+Open http://127.0.0.1:4003 and use Claude Code normally. You'll see Claude move around the workshop as it uses tools.
+
+## Codex (global event visualization)
+
+The Codex adapter observes lifecycle and tool events. It does not send prompts to or cancel a Codex session from Vibecraft.
+
+```bash
+npm install -g 'github:LucasPreviato/vibecraft#feature/codex-hooks'
+vibecraft setup --codex
+vibecraft
+```
+
+Open http://127.0.0.1:4003. Review and trust the added hook in Codex Settings > Hooks. The adapter sends prompts, tool inputs, tool outputs, and final responses to the local server; Codex events are kept in server memory and are not appended to `events.jsonl`.
+
+Remove the Codex hooks with `vibecraft uninstall --codex`.
 
 **From source:**
 ```bash

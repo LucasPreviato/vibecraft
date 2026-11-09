@@ -86,11 +86,11 @@ const AGENT_PORT = getAgentPort()
 // In prod (hosted), connect to localhost where user's agent runs
 const WS_URL = import.meta.env.DEV
   ? `ws://${window.location.host}/ws`
-  : `ws://localhost:${AGENT_PORT}`
+  : `ws://127.0.0.1:${AGENT_PORT}`
 
 const API_URL = import.meta.env.DEV
   ? '/api'
-  : `http://localhost:${AGENT_PORT}`
+  : `http://127.0.0.1:${AGENT_PORT}`
 
 // Create session API instance
 const sessionAPI = createSessionAPI(API_URL)
@@ -1343,7 +1343,7 @@ function setupDevPanel(): void {
 /** Map Claude sessionIds to managed session IDs */
 const claudeToManagedLink = new Map<string, string>()
 
-function getOrCreateSession(sessionId: string): SessionState | null {
+function getOrCreateSession(sessionId: string, provider?: string): SessionState | null {
   let session = state.sessions.get(sessionId)
   if (session) return session
 
@@ -1351,10 +1351,9 @@ function getOrCreateSession(sessionId: string): SessionState | null {
     throw new Error('Scene not initialized')
   }
 
-  // Check if this session can be linked to a managed session
-  // Only create zones for sessions that are linked or can be linked
-  const canLink = canLinkToManagedSession(sessionId)
-  if (!canLink) {
+  // Codex events can be observed without a tmux-managed session.
+  const canLink = provider !== 'codex' && canLinkToManagedSession(sessionId)
+  if (!canLink && provider !== 'codex') {
     // Unlinked session - don't create a zone for it
     console.log(`Ignoring unlinked session ${sessionId.slice(0, 8)} (no matching managed session)`)
     return null
@@ -1362,7 +1361,7 @@ function getOrCreateSession(sessionId: string): SessionState | null {
 
   // Try to link to a recently-created managed session FIRST
   // (so we can get the hint position from it)
-  const linkedManagedSession = tryLinkToManagedSession(sessionId)
+  const linkedManagedSession = canLink ? tryLinkToManagedSession(sessionId) : null
 
   // Look up hint position: first check saved zone position, then pending hints
   let hintPosition: { x: number; z: number } | undefined
@@ -1419,6 +1418,8 @@ function getOrCreateSession(sessionId: string): SessionState | null {
         saveZonePosition(linkedManagedSession.id, hexPos)
       }
     }
+  } else if (provider === 'codex') {
+    state.scene.updateZoneLabel(sessionId, `Codex ${sessionId.slice(0, 8)}`)
   }
 
   // Create Claude with matching color, positioned at zone center
@@ -1748,7 +1749,7 @@ function updateStats() {
 function handleEvent(event: ClaudeEvent) {
   // Get or create session for this event
   // Returns null if the session isn't linked to a managed session
-  const session = getOrCreateSession(event.sessionId)
+  const session = getOrCreateSession(event.sessionId, event.provider)
 
   state.eventHistory.push(event)
 

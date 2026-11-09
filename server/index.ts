@@ -80,6 +80,7 @@ function expandHome(path: string): string {
 }
 
 const PORT = parseInt(process.env.VIBECRAFT_PORT ?? String(DEFAULTS.SERVER_PORT), 10)
+const HOST = process.env.VIBECRAFT_HOST ?? '127.0.0.1'
 const EVENTS_FILE = resolve(expandHome(process.env.VIBECRAFT_EVENTS_FILE ?? DEFAULTS.EVENTS_FILE))
 const PENDING_PROMPT_FILE = resolve(expandHome(process.env.VIBECRAFT_PROMPT_FILE ?? '~/.vibecraft/data/pending-prompt.txt'))
 const MAX_EVENTS = parseInt(process.env.VIBECRAFT_MAX_EVENTS ?? String(DEFAULTS.MAX_EVENTS), 10)
@@ -2282,8 +2283,11 @@ function main() {
         .map(s => s.claudeSessionId)
         .filter(Boolean)
     )
+    const observedCodexSessionIds = new Set(
+      events.filter(event => event.provider === 'codex').map(event => event.sessionId)
+    )
     const filteredHistory = events
-      .filter(e => activeClaudeSessionIds.has(e.sessionId))
+      .filter(e => activeClaudeSessionIds.has(e.sessionId) || observedCodexSessionIds.has(e.sessionId))
       .slice(-50)
     const historyMsg: ServerMessage = {
       type: 'history',
@@ -2321,18 +2325,19 @@ function main() {
     })
   })
 
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, HOST, () => {
     log(`Server running on port ${PORT}`)
+    log(`Local address: http://${HOST}:${PORT}`)
     log(``)
     log(`Open https://vibecraft.sh to view your workshop`)
     log(``)
     log(`Local API endpoints:`)
-    log(`  WebSocket: ws://localhost:${PORT}`)
-    log(`  Events: http://localhost:${PORT}/event`)
-    log(`  Prompt: http://localhost:${PORT}/prompt`)
-    log(`  Health: http://localhost:${PORT}/health`)
-    log(`  Stats: http://localhost:${PORT}/stats`)
-    log(`  Sessions: http://localhost:${PORT}/sessions`)
+    log(`  WebSocket: ws://${HOST}:${PORT}`)
+    log(`  Events: http://${HOST}:${PORT}/event`)
+    log(`  Prompt: http://${HOST}:${PORT}/prompt`)
+    log(`  Health: http://${HOST}:${PORT}/health`)
+    log(`  Stats: http://${HOST}:${PORT}/stats`)
+    log(`  Sessions: http://${HOST}:${PORT}/sessions`)
 
     // Start token polling after server is ready
     startTokenPolling()

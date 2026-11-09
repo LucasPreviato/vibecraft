@@ -58,9 +58,37 @@ npx vibecraft
 claude
 ```
 
-Open http://localhost:4003 in your browser.
+Open http://127.0.0.1:4003 in your browser.
 
 **That's it!** Every time Claude uses a tool, you'll see it in the 3D visualization.
+
+---
+
+## Codex (global event visualization)
+
+The Codex adapter uses Codex lifecycle hooks to visualize prompts, tool calls, subagents, and completed turns. It is an observer: the Vibecraft controls for sending prompts and cancelling sessions still target Claude Code sessions managed through `tmux`.
+
+### Install and configure
+
+```bash
+npm install -g 'github:LucasPreviato/vibecraft#feature/codex-hooks'
+vibecraft setup --codex
+vibecraft
+```
+
+Open http://127.0.0.1:4003. In Codex, review and trust the hook from **Settings > Hooks** before expecting events.
+
+The setup command copies the Python hook into `~/.vibecraft/hooks/` and merges its entries into `~/.codex/hooks.json`. If that file already exists, the command makes a timestamped backup and preserves unrelated hooks. Python 3 is required; `jq` is not required for the Codex adapter.
+
+The hook forwards prompt text, tool inputs and outputs, and final assistant text to the Vibecraft server on `127.0.0.1`. The Codex adapter does not append events to `events.jsonl`; the running server keeps them in memory. Keep the server bound to loopback unless you deliberately configure another host.
+
+Remove only the Codex hooks with:
+
+```bash
+vibecraft uninstall --codex
+```
+
+This leaves event data and unrelated Codex hooks untouched.
 
 ---
 

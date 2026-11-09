@@ -51,7 +51,28 @@ function checkTmux() {
   }
 }
 
+function checkCodexHooksConfigured() {
+  const hooksPath = join(homedir(), '.codex', 'hooks.json')
+  if (!existsSync(hooksPath)) return false
+
+  try {
+    const config = JSON.parse(readFileSync(hooksPath, 'utf-8'))
+    const hooks = config.hooks || {}
+    return ['PreToolUse', 'PostToolUse'].every(eventType =>
+      hooks[eventType]?.some(entry =>
+        entry?.hooks?.some(hook => hook?.command?.includes('vibecraft-codex-hook.py'))
+      )
+    )
+  } catch {
+    return false
+  }
+}
+
 function checkHooksConfigured() {
+  if (checkCodexHooksConfigured()) {
+    return { configured: true, provider: 'Codex' }
+  }
+
   const settingsPath = join(homedir(), '.claude', 'settings.json')
   if (!existsSync(settingsPath)) {
     return { configured: false, reason: 'no settings file' }
@@ -79,11 +100,12 @@ function checkHooksConfigured() {
 function printHealthCheck() {
   const jqOk = checkJq()
   const tmuxOk = checkTmux()
+  const codexHooksConfigured = checkCodexHooksConfigured()
   const hooksResult = checkHooksConfigured()
 
   let warnings = []
 
-  if (!jqOk) {
+  if (!jqOk && !codexHooksConfigured) {
     warnings.push(`  [!] jq not found - hooks won't work without it
       Install: brew install jq (macOS) or apt install jq (Linux)`)
   }
@@ -95,8 +117,8 @@ function printHealthCheck() {
 
   if (!hooksResult.configured) {
     warnings.push(`  [!] Hooks not configured - events won't be captured
-      Run: npx vibecraft setup
-      Then restart Claude Code`)
+      Run: vibecraft setup --codex (Codex) or vibecraft setup (Claude Code)
+      Then restart Codex or Claude Code`)
   }
 
   if (warnings.length > 0) {
@@ -111,12 +133,14 @@ const args = process.argv.slice(2)
 
 if (args.includes('--help') || args.includes('-h')) {
   console.log(`
-vibecraft - 3D visualization for Claude Code
+  vibecraft - 3D visualization for Claude Code and Codex
 
 Usage:
   vibecraft [options]
   vibecraft setup         Configure Claude Code hooks automatically
-  vibecraft uninstall     Remove vibecraft hooks (keeps your data)
+  vibecraft setup --codex Configure Codex hooks globally
+  vibecraft uninstall     Remove Claude Code hooks (keeps your data)
+  vibecraft uninstall --codex Remove Codex hooks (keeps your data)
   vibecraft doctor        Diagnose common issues
 
 Options:
@@ -127,6 +151,7 @@ Options:
 
 Environment Variables:
   VIBECRAFT_PORT       WebSocket server port (default: 4003)
+  VIBECRAFT_HOST       Server bind host (default: 127.0.0.1)
   VIBECRAFT_DEBUG      Enable debug logging (true/false)
 
 Setup:
@@ -143,6 +168,86 @@ GitHub:  https://github.com/nearcyan/vibecraft
 // Hook path command
 if (args.includes('--hook-path')) {
   console.log(resolve(ROOT, 'hooks/vibecraft-hook.sh'))
+  process.exit(0)
+}
+
+// Configure Codex hooks without modifying Claude Code settings.
+if (args[0] === 'setup' && args[1] === '--codex') {
+  const { writeFileSync, copyFileSync, chmodSync, mkdirSync } = await import('fs')
+  const hooksPath = join(homedir(), '.codex', 'hooks.json')
+  const hooksDir = join(homedir(), '.vibecraft', 'hooks')
+  const installedHookPath = join(hooksDir, 'vibecraft-codex-hook.py')
+  const sourceHookPath = resolve(ROOT, 'hooks/vibecraft-codex-hook.py')
+
+  try {
+    execSync('python3 --version', { stdio: 'ignore' })
+  } catch {
+    console.error('ERROR: Python 3 is required for the Codex hook.')
+    process.exit(1)
+  }
+
+  let config = { hooks: {} }
+  if (existsSync(hooksPath)) {
+    try {
+      config = JSON.parse(readFileSync(hooksPath, 'utf-8'))
+    } catch (error) {
+      console.error(`ERROR: Failed to parse ${hooksPath}: ${error.message}`)
+      process.exit(1)
+    }
+  }
+  if (!config || typeof config !== 'object' || Array.isArray(config)) config = {}
+  if (config.hooks !== undefined && (!config.hooks || typeof config.hooks !== 'object' || Array.isArray(config.hooks))) {
+    console.error(`ERROR: The hooks field in ${hooksPath} must be an object.`)
+    process.exit(1)
+  }
+  if (!existsSync(sourceHookPath)) {
+    console.error(`ERROR: Codex hook script not found at ${sourceHookPath}`)
+    process.exit(1)
+  }
+
+  const eventTypes = [
+    'PreToolUse', 'PostToolUse', 'Stop', 'SubagentStart', 'SubagentStop',
+    'SessionStart', 'SessionEnd', 'UserPromptSubmit', 'PreCompact', 'PermissionRequest',
+  ]
+  for (const eventType of eventTypes) {
+    if (config.hooks?.[eventType] !== undefined && !Array.isArray(config.hooks[eventType])) {
+      console.error(`ERROR: ${eventType} hooks in ${hooksPath} must be an array.`)
+      process.exit(1)
+    }
+  }
+
+  mkdirSync(dirname(hooksPath), { recursive: true })
+  mkdirSync(hooksDir, { recursive: true })
+  mkdirSync(join(homedir(), '.vibecraft', 'data'), { recursive: true })
+
+  if (existsSync(hooksPath)) {
+    const backupPath = `${hooksPath}.backup-${Date.now()}`
+    copyFileSync(hooksPath, backupPath)
+    console.log(`Backed up Codex hooks: ${backupPath}`)
+  }
+
+  copyFileSync(sourceHookPath, installedHookPath)
+  chmodSync(installedHookPath, 0o755)
+  const shellQuote = value => `'${value.replace(/'/g, "'\\''")}'`
+  const command = `python3 ${shellQuote(installedHookPath)}`
+  config.hooks = config.hooks || {}
+  for (const eventType of eventTypes) {
+    const existing = config.hooks[eventType] || []
+    const preserved = existing.filter(entry =>
+      !entry?.hooks?.some(hook => hook?.command?.includes('vibecraft-codex-hook.py'))
+    )
+    config.hooks[eventType] = [...preserved, {
+      hooks: [{ type: 'command', command, timeout: 2 }],
+    }]
+  }
+
+  writeFileSync(hooksPath, `${JSON.stringify(config, null, 2)}\n`)
+  console.log(`Installed Codex hook: ${installedHookPath}`)
+  console.log(`Updated Codex hooks: ${hooksPath}`)
+  console.log('\nNext steps:')
+  console.log('  1. Start Vibecraft: vibecraft')
+  console.log('  2. Review/trust the hook in Codex Settings > Hooks')
+  console.log('  3. Open http://127.0.0.1:4003\n')
   process.exit(0)
 }
 
@@ -350,6 +455,57 @@ if (args[0] === 'setup') {
     console.log('  3. Open http://localhost:4003 in your browser\n')
   }
 
+  process.exit(0)
+}
+
+// Remove only Vibecraft's Codex hooks; leave other Codex settings and hook data intact.
+if (args[0] === 'uninstall' && args[1] === '--codex') {
+  const { writeFileSync, copyFileSync, rmSync } = await import('fs')
+  const hooksPath = join(homedir(), '.codex', 'hooks.json')
+  const installedHookPath = join(homedir(), '.vibecraft', 'hooks', 'vibecraft-codex-hook.py')
+  const eventTypes = [
+    'PreToolUse', 'PostToolUse', 'Stop', 'SubagentStart', 'SubagentStop',
+    'SessionStart', 'SessionEnd', 'UserPromptSubmit', 'PreCompact', 'PermissionRequest',
+  ]
+
+  if (existsSync(hooksPath)) {
+    let config
+    try {
+      config = JSON.parse(readFileSync(hooksPath, 'utf-8'))
+    } catch (error) {
+      console.error(`ERROR: Failed to parse ${hooksPath}: ${error.message}`)
+      process.exit(1)
+    }
+
+    let removedHooks = 0
+    for (const eventType of eventTypes) {
+      if (!Array.isArray(config.hooks?.[eventType])) continue
+      const before = config.hooks[eventType].length
+      config.hooks[eventType] = config.hooks[eventType].filter(entry =>
+        !entry?.hooks?.some(hook => hook?.command?.includes('vibecraft-codex-hook.py'))
+      )
+      removedHooks += before - config.hooks[eventType].length
+      if (config.hooks[eventType].length === 0) delete config.hooks[eventType]
+    }
+
+    if (removedHooks > 0) {
+      const backupPath = `${hooksPath}.backup-${Date.now()}`
+      copyFileSync(hooksPath, backupPath)
+      if (config.hooks && Object.keys(config.hooks).length === 0) delete config.hooks
+      writeFileSync(hooksPath, `${JSON.stringify(config, null, 2)}\n`)
+      console.log(`Removed ${removedHooks} Codex hook groups; backup: ${backupPath}`)
+    } else {
+      console.log('No Vibecraft Codex hooks found.')
+    }
+  } else {
+    console.log('No Codex hooks file found.')
+  }
+
+  if (existsSync(installedHookPath)) {
+    rmSync(installedHookPath)
+    console.log(`Removed hook script: ${installedHookPath}`)
+  }
+  console.log('Vibecraft event data was left untouched.')
   process.exit(0)
 }
 

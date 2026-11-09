@@ -48,8 +48,10 @@ export interface BaseEvent {
   timestamp: number
   /** Event type */
   type: HookEventType
-  /** Claude Code session ID */
+  /** Agent session ID */
   sessionId: string
+  /** Agent that produced this event */
+  provider?: 'claude' | 'codex'
   /** Current working directory */
   cwd: string
 }
@@ -96,7 +98,7 @@ export interface SubagentStopEvent extends BaseEvent {
 
 export interface SessionStartEvent extends BaseEvent {
   type: 'session_start'
-  source: 'startup' | 'resume' | 'clear' | 'compact'
+  source: 'startup' | 'resume' | 'clear' | 'compact' | 'fork'
 }
 
 export interface SessionEndEvent extends BaseEvent {
