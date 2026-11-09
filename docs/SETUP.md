@@ -71,7 +71,7 @@ The Codex adapter uses Codex lifecycle hooks to visualize prompts, tool calls, s
 ### Install and configure
 
 ```bash
-git clone --depth 1 --branch feature/codex-hooks https://github.com/LucasPreviato/vibecraft.git ~/vibecraft-codex
+git clone --depth 1 --branch main https://github.com/LucasPreviato/vibecraft.git ~/vibecraft-codex
 cd ~/vibecraft-codex
 npm ci
 npm pack --pack-destination /tmp
@@ -83,6 +83,10 @@ vibecraft
 Open http://127.0.0.1:4003. In Codex, review and trust the hook from the Hooks review screen (CLI: `/hooks`) before expecting events.
 
 The setup command copies the Python hook into `~/.vibecraft/hooks/` and merges its entries into `~/.codex/hooks.json`. If that file already exists, the command makes a timestamped backup and preserves unrelated hooks. Python 3 is required; `jq` is not required for the Codex adapter.
+
+#### Codex Desktop on Windows with WSL2
+
+When Codex Desktop runs in Windows and Vibecraft runs in Ubuntu WSL2, the desktop reads the Windows profile's `%USERPROFILE%\\.codex\\hooks.json`. Running `vibecraft setup --codex` inside Ubuntu configures only the Linux home. Add the same event entries to the Windows hooks file and set `commandWindows` to `C:\\Windows\\System32\\wsl.exe -d Ubuntu -- python3 /home/<wsl-user>/.vibecraft/hooks/vibecraft-codex-hook.py`. Replace `<wsl-user>` with the Ubuntu home directory name, then review and trust the hook in Codex Desktop.
 
 The hook forwards prompt text, tool inputs and outputs, and final assistant text to the Vibecraft server on `127.0.0.1`. The Codex adapter does not append events to `events.jsonl`; the running server keeps them in memory. Keep the server bound to loopback unless you deliberately configure another host.
 

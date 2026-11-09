@@ -16,7 +16,7 @@ Vibecraft uses your own local Claude Code instances — no files or prompts are 
 
 ## Requirements
 
-- **macOS or Linux** (Windows not supported - hooks require bash)
+- **macOS or Linux** (Windows users can run the Linux package in WSL2/Ubuntu; native Windows is not supported)
 - **Node.js** 18+
 - **Python 3** - for Codex hook scripts
 - **jq** - only for Claude Code hook scripts (`brew install jq` / `apt install jq`)
@@ -43,7 +43,7 @@ Open http://127.0.0.1:4003 and use Claude Code normally. You'll see Claude move 
 The Codex adapter observes lifecycle and tool events. It does not send prompts to or cancel a Codex session from Vibecraft.
 
 ```bash
-git clone --depth 1 --branch feature/codex-hooks https://github.com/LucasPreviato/vibecraft.git ~/vibecraft-codex
+git clone --depth 1 --branch main https://github.com/LucasPreviato/vibecraft.git ~/vibecraft-codex
 cd ~/vibecraft-codex
 npm ci
 npm pack --pack-destination /tmp
@@ -53,6 +53,8 @@ vibecraft
 ```
 
 Open http://127.0.0.1:4003. Review and trust the added hook in Codex's Hooks review screen (CLI: `/hooks`). The adapter sends prompts, tool inputs, tool outputs, and final responses to the local server; Codex events are kept in server memory and are not appended to `events.jsonl`.
+
+For Codex Desktop running on Windows with Vibecraft in WSL2, configure the Windows profile at `%USERPROFILE%\\.codex\\hooks.json` as well. The setup command above configures only the Linux user's hooks; use `commandWindows` to invoke the WSL hook script.
 
 Remove the Codex hooks with `vibecraft uninstall --codex`.
 
