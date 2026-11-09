@@ -43,12 +43,16 @@ Open http://127.0.0.1:4003 and use Claude Code normally. You'll see Claude move 
 The Codex adapter observes lifecycle and tool events. It does not send prompts to or cancel a Codex session from Vibecraft.
 
 ```bash
-npm install -g 'github:LucasPreviato/vibecraft#feature/codex-hooks'
+git clone --depth 1 --branch feature/codex-hooks https://github.com/LucasPreviato/vibecraft.git ~/vibecraft-codex
+cd ~/vibecraft-codex
+npm ci
+npm pack --pack-destination /tmp
+npm install -g /tmp/vibecraft-0.1.15.tgz
 vibecraft setup --codex
 vibecraft
 ```
 
-Open http://127.0.0.1:4003. Review and trust the added hook in Codex Settings > Hooks. The adapter sends prompts, tool inputs, tool outputs, and final responses to the local server; Codex events are kept in server memory and are not appended to `events.jsonl`.
+Open http://127.0.0.1:4003. Review and trust the added hook in Codex's Hooks review screen (CLI: `/hooks`). The adapter sends prompts, tool inputs, tool outputs, and final responses to the local server; Codex events are kept in server memory and are not appended to `events.jsonl`.
 
 Remove the Codex hooks with `vibecraft uninstall --codex`.
 

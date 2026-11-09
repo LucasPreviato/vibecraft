@@ -51,7 +51,8 @@ function getPackageVersion(): string {
     // Try multiple locations (dev vs compiled)
     const locations = [
       resolve(__dirname, '../package.json'),      // dev: server/ -> package.json
-      resolve(__dirname, '../../package.json'),   // compiled: dist/server/ -> package.json
+      resolve(__dirname, '../../../package.json'), // compiled: dist/server/server/ -> package.json
+      resolve(__dirname, '../../package.json'),    // legacy compiled layout
     ]
     for (const loc of locations) {
       if (existsSync(loc)) {

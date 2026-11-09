@@ -71,12 +71,16 @@ The Codex adapter uses Codex lifecycle hooks to visualize prompts, tool calls, s
 ### Install and configure
 
 ```bash
-npm install -g 'github:LucasPreviato/vibecraft#feature/codex-hooks'
+git clone --depth 1 --branch feature/codex-hooks https://github.com/LucasPreviato/vibecraft.git ~/vibecraft-codex
+cd ~/vibecraft-codex
+npm ci
+npm pack --pack-destination /tmp
+npm install -g /tmp/vibecraft-0.1.15.tgz
 vibecraft setup --codex
 vibecraft
 ```
 
-Open http://127.0.0.1:4003. In Codex, review and trust the hook from **Settings > Hooks** before expecting events.
+Open http://127.0.0.1:4003. In Codex, review and trust the hook from the Hooks review screen (CLI: `/hooks`) before expecting events.
 
 The setup command copies the Python hook into `~/.vibecraft/hooks/` and merges its entries into `~/.codex/hooks.json`. If that file already exists, the command makes a timestamped backup and preserves unrelated hooks. Python 3 is required; `jq` is not required for the Codex adapter.
 

@@ -1338,7 +1338,7 @@ function setupDevPanel(): void {
 
 /**
  * Get or create a session for a given sessionId
- * Returns null if the session can't be linked to a managed session
+ * Unmanaged Claude sessions are ignored; Codex sessions are shown without a tmux link.
  */
 /** Map Claude sessionIds to managed session IDs */
 const claudeToManagedLink = new Map<string, string>()
@@ -1748,7 +1748,7 @@ function updateStats() {
 
 function handleEvent(event: ClaudeEvent) {
   // Get or create session for this event
-  // Returns null if the session isn't linked to a managed session
+  // Only unmanaged Claude sessions return null; Codex sessions are independently visualized.
   const session = getOrCreateSession(event.sessionId, event.provider)
 
   state.eventHistory.push(event)
